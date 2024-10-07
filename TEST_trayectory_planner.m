@@ -35,6 +35,8 @@ for t=0:0.1:t3
  Jp=SCARAjacP(Q1,Q1p,L);
  Q1pp=inv(J)*(Spp-Jp*Q1p);
 
+ Fq(i,:)=-(J')*Fs';
+
  PlotScara(Q1,L,'r',1)
 
 
@@ -52,3 +54,6 @@ subplot(2,2,1); plot(time, px, time, vx, time, ax); grid;
 subplot(2,2,2); plot(time, py, time, vy, time, ay); grid;
 subplot(2,2,3); plot(time, q1, time, q1p, time, q1pp); grid;
 subplot(2,2,4); plot(time, q2, time, q2p, time, q2pp); grid;
+
+figure;
+plot(time, Fq(:,1), time, Fq(:,2)); grid %Kinematic solution
