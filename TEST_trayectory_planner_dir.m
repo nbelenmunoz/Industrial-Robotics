@@ -14,10 +14,13 @@ Fx=10; Fy=10;
 Fs(1)=Fx;
 Fs(2)=Fy;
 
+Qia=Qi(1); dQa=dQ(1); %a is alpha
+Qib=Qi(2); dQb=dQ(2); %b is beta
+
 Six=Si(1); dSx=Ds(1);
 Siy=Si(2); dSy=Ds(2);
 
-tx1=3; tx2=6; tx3=9;
+tx1=3; tx2=6; tx3=9; %Distribution in terms of time
 ty1=1; ty2=8; ty3=9;
 t3 = tx3;
 
@@ -27,35 +30,42 @@ hold on
 
 i=1;
 for t=0:0.1:t3
- resx=Sshape(t,Six,dSx,tx1,tx2,tx3);
- resy=Sshape(t,Siy,dSy,ty1,ty2,ty3);
- 
- S = [resx.pos; resy.pos];
- Sp = [resx.vel;resy.vel];
- Spp=[resx.acc;resy.acc];
- Q1=SCARAinv(S,L ,1);
- J = SCARAjac(Q1, L);
- Q1p=inv(J)*Sp;
- Jp=SCARAjacP(Q1,Q1p,L);
- Q1pp=inv(J)*(Spp-Jp*Q1p);
+ % resx=Sshape(t,Six,dSx,tx1,tx2,tx3);
+ % resy=Sshape(t,Siy,dSy,ty1,ty2,ty3);
+ resa = Sshape(t, Qia, dQa, tx1, tx2, tx3);
+ resb = Sshape(t, Qib, dQb, ty1, ty2, ty3);
 
+ Q=[resa.pos; resb.pos];
+ Qp=[resa.vel; resb.vel];
+ Qpp=[resa.acc; resb.acc];
+
+ % S = [resx.pos; resy.pos]; % Sp = [resx.vel;resy.vel]; % Spp=[resx.acc;resy.acc];
+ S=SCARAdir(Q,L);
+ 
+
+ % Q1=SCARAinv(S,L ,1);
+ J = SCARAjac(Q, L);
+ % Q1p=inv(J)*Sp;
+ Jp=SCARAjacP(Q,Qp,L);
+ % Q1pp=inv(J)*(Spp-Jp*Q1p);
+ % 
  Fq(i,:)=-(J')*Fs';
 
- PlotScara(Q1,L,'r',1)
+ PlotScara(Q,L,'r',1)
 
 
 time(i)=t;
-px(i)=resx.pos;   vx(i)=resx.vel;   ax(i)=resx.acc;
-py(i)=resy.pos;   vy(i)=resy.vel;   ay(i)=resy.acc;
-q1(i)=Q1(1); q1p(i)=Q1p(1); q1pp(i)=Q1pp(1);
-q2(i)=Q1(2); q2p(i)=Q1p(2); q2pp(i)=Q1pp(2);
+px(i)=S(1);   %vx(i)=resx.vel;   ax(i)=resx.acc;
+py(i)=S(2);   %vy(i)=resy.vel;   ay(i)=resy.acc;
+q1(i)=Q(1); q1p(i)=Qp(1); q1pp(i)=Qpp(1);
+q2(i)=Q(2); q2p(i)=Qp(2); q2pp(i)=Qpp(2);
 i=i+1;
 end
 
 figure; plot(px, py); grid;
 figure
-subplot(2,2,1); plot(time, px, time, vx, time, ax); grid;
-subplot(2,2,2); plot(time, py, time, vy, time, ay); grid;
+subplot(2,2,1); plot(time, px); grid; % time, vx, time, ax
+subplot(2,2,2); plot(time, py); grid; % time, vy, time, ay
 subplot(2,2,3); plot(time, q1, time, q1p, time, q1pp); grid;
 subplot(2,2,4); plot(time, q2, time, q2p, time, q2pp); grid;
 
