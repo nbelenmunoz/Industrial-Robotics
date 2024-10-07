@@ -22,6 +22,7 @@ dT =1/100;
 T=5;
 tt =[0:dT:T]; %Time used
 n= length(tt); %Number of T elements
+figure(1);
 
 for i=1:n
     resx=cycloidal(tt(i),T,S0(1),dS(1));
@@ -35,11 +36,27 @@ for i=1:n
     J=SCARAjac(Q,L);
     Qp=inv(J)*Sp;
     Jp=SCARAjacP(Q,Qp,L);
-    Qpp=inv(J)*(Spp-Jp*Qp);    
+    Qpp=inv(J)*(Spp-Jp*Qp);  
+
+    Sd=SCARAdirdin(Q,L);
+    Je=SCARAjacdin(Q,L);
+    Jep=SCARAjacPdin(Q,Qp,L); %Extended Jacobian derivative
+
+    Sepp=Jep*Qp+Je*Qpp;
+    Fsi=-M*Sepp;
+    Fs=(Fse+Fsi);
+
+    Fcq=-Je'*Fs;
+
+    PlotScara(Q,L,'r',1);
+
+    sx_save(i)=resx.pos;sy_save(i)=resy.pos;
+    q1_save(i)=Q(1);q2_save(i)=Q(2);
+    q1t_save(i)=Fcq(1); q2t_save(i)=Fcq(2);
+
 end
 
+figure
+plot(tt, q1t_save, tt, q2t_save); grid;
 
-Q=[-0.244;2.375];
-Qp=[-2.66;-2.2];
-Qpp=[26.63;-12.36];
 
