@@ -1,5 +1,3 @@
-% TEST SCARA with Additional Degrees of Freedom
-% Script to test the direct and inverse kinematic problem for a SCARA robot
 clc; clear all; close all;
 
 l1 = 300;  
@@ -10,7 +8,7 @@ L = [l1; l2; l3];
 
 % Initial and final TCP positions and orientations
 Si = [-400; -100; 150; pi];       %[X; Y; Z; phi]
-Sf = [-600; -10; 150; pi];     
+Sf = [-600; -10; 100; pi];     
 Ds = Sf - Si;                   
 
 Fx = 10; Fy = 10; Fz = 0; Mphi = 0;
@@ -20,13 +18,12 @@ tx1 = 3; tx2 = 6; tx3 = 9;
 ty1 = 1; ty2 = 8; ty3 = 9;     
 t3 = tx3;                      
 
-% Generate trajectory parameters
 Six = Si(1); dSx = Ds(1);
 Siy = Si(2); dSy = Ds(2);
-dPhi = Ds(4);                   % Change in orientation phi
+dPhi = Ds(4);                  
 
 figure(1)
-PlotAreaSCARA3DOF(L, 1);           
+PlotAreaSCARA4DOF(L, 1);           
 hold on
 
 % Initialize variables
@@ -48,18 +45,18 @@ for t = 0:0.1:t3
     Sp = [resx.vel; resy.vel; Z_dot; phi_dot]; 
     Spp = [resx.acc; resy.acc; Z_ddot; phi_ddot]; 
     
-    Q1 = SCARAinv3DOF(S, L, 1);  % Use SCARAinv
+    Q1 = SCARAinv4DOF(S, L, 1);  % Use SCARAinv
     
-    J = SCARAjac3DOF(Q1, L); 
+    J = SCARAjac4DOF(Q1, L); 
     Q1p = inv(J) * Sp;    
-    Jp = SCARAjacP3DOF(Q1, Q1p, L);  
+    Jp = SCARAjacP4DOF(Q1, Q1p, L);  
     Q1pp = inv(J) * (Spp - Jp * Q1p);  
 
     Fq(i, :) = -(J') * Fs;  % Joint torques/forces
     
 
-    PlotScara3DOF(Q1(1:3), L, 'r', 1);  % Use PlotScara
-
+    PlotScara4DOF(Q1, L, 'r', 1);
+    
 
     time(i) = t;
     px(i) = resx.pos;   vx(i) = resx.vel;   ax(i) = resx.acc;
@@ -71,15 +68,12 @@ for t = 0:0.1:t3
     i = i + 1;
 end
 
-% Plot the end-effector trajectory
 figure;
 plot(px, py, 'b-', 'LineWidth', 2); grid on;
 xlabel('X Position (mm)');
 ylabel('Y Position (mm)');
 title('End-Effector Trajectory');
 
-
-% Plot joint torques/forces
 figure;
 plot(time, Fq(:,1), 'b-', time, Fq(:,2), 'r--', time, Fq(:,3), 'g-.', time, Fq(:,4), 'k:'); grid on;
 xlabel('Time (s)');
@@ -88,3 +82,4 @@ title('Joint Torques and Forces');
 legend('Torque 1', 'Torque 2', 'Torque 3', 'Force on Prismatic Joint');
 
 hold off;
+
