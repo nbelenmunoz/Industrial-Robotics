@@ -1,42 +1,84 @@
 function Jp = SCARAjacPdin4DOF(Q, Qp, L)
-theta1 = Q(1);
-theta2 = Q(2);
-d3     = Q(3);  
-theta3 = Q(4);
+    % SCARAjacPdin4DOF computes the time derivative of the Jacobian matrix for a 3R SCARA robot
+    l1 = L(1); l2 = L(2); l3 = L(3);
+    g1 = L(4); g2 = L(5); g3 = L(6);
+    Jp = zeros(15, 4);
 
-theta1_dot = Qp(1);
-theta2_dot = Qp(2);
-d3_dot     = Qp(3);
-theta3_dot = Qp(4);
+    Jp(1,1) = -l1*cos(Q(1))*Qp(1) - l2*cos(Q(1)+Q(2))*(Qp(1)+Qp(2)) - l3*cos(Q(1)+Q(2)+Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    Jp(1,2) = -l2*cos(Q(1)+Q(2))*(Qp(1)+Qp(2)) - l3*cos(Q(1)+Q(2)+Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    Jp(1,3) = -l3*cos(Q(1)+Q(2)+Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    Jp(1,4) =0;
+    
+    Jp(2,1) = -l1*sin(Q(1))*Qp(1) - l2*sin(Q(1)+Q(2))*(Qp(1)+Qp(2)) - l3*sin(Q(1)+Q(2)+Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    Jp(2,2) = -l2*sin(Q(1)+Q(2))*(Qp(1)+Qp(2)) - l3*sin(Q(1)+Q(2)+Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    Jp(2,3) = -l3*sin(Q(1)+Q(2)+Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    Jp(2,4) =0;
 
+    J(3,1) =0;
+    J(3,2) =0;
+    J(3,3) =0;
+    J(3,4) =0;
 
-l1 = L(1);
-l2 = L(2);
-l3 = L(3);
+    J(4,1) = -l1*cos(Q(1))*Qp(1) - l2*cos(Q(1) + Q(2))*(Qp(1)+Qp(2)) - g3*cos(Q(1) + Q(2) + Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    J(4,2) = - l2*cos(Q(1) + Q(2))*(Qp(1)+Qp(2)) - g3*cos(Q(1) + Q(2) + Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    J(4,3) = - g3*cos(Q(1) + Q(2) + Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    J(4,4) = 0;
 
-theta12 = theta1 + theta2;
-theta123 = theta1 + theta2 + theta3;
+    J(5,1) = l1*sin(Q(1))*Qp(1) + l2*sin(Q(1) + Q(2))*(Qp(1)+Qp(2)) + g3*sin(Q(1) + Q(2) + Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    J(5,2) =  l2*sin(Q(1) + Q(2))*(Qp(1)+Qp(2)) + g3*sin(Q(1) + Q(2) + Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    J(5,3) =  g3*sin(Q(1) + Q(2) + Q(3))*(Qp(1)+Qp(2)+Qp(3));
+    J(5,4) = 0;
 
-theta12_dot = theta1_dot + theta2_dot;
-theta123_dot = theta1_dot + theta2_dot + theta3_dot;
+    J(6,1) =0;
+    J(6,2) =0;
+    J(6,3) =0;
+    J(6,4) =0;
 
-Jp = zeros(4, 4);
+    J(7,1) =0;
+    J(7,2) =0;
+    J(7,3) =0;
+    J(7,4) =0;
 
-Jp(1,1) = -l1 * cos(theta1) * theta1_dot - l2 * cos(theta12) * theta12_dot - l3 * cos(theta123) * theta123_dot;
-Jp(1,2) = -l2 * cos(theta12) * theta12_dot - l3 * cos(theta123) * theta123_dot;
-Jp(1,3) = 0;
-Jp(1,4) = -l3 * cos(theta123) * theta123_dot;
-Jp(2,1) = -l1 * sin(theta1) * theta1_dot - l2 * sin(theta12) * theta12_dot - l3 * sin(theta123) * theta123_dot;
-Jp(2,2) = -l2 * sin(theta12) * theta12_dot - l3 * sin(theta123) * theta123_dot;
-Jp(2,3) = 0;
-Jp(2,4) = -l3 * sin(theta123) * theta123_dot;
-Jp(3,1) = 0;
-Jp(3,2) = 0;
-Jp(3,3) = 0;
-Jp(3,4) = 0;
-Jp(4,1) = 0;
-Jp(4,2) = 0;
-Jp(4,3) = 0;
-Jp(4,4) = 0;
+    J(8,1) = -l1 * cos(Q(1))*Qp(1) - g2 * cos(Q(1) + Q(2))*(Qp(1)+Qp(2));
+    J(8,2) = -g2 * cos(Q(1) + Q(2))*(Qp(1)+Qp(2));
+    J(8,3) = 0;
+    J(8,4) = 0;
+
+    J(9,1) = -l1 * sin(Q(1))*Qp(1) - g2 * sin(Q(1) + Q(2))*(Qp(1)+Qp(2));
+    J(9,2) = -g2 * sin(Q(1) + Q(2))*(Qp(1)+Qp(2));
+    J(9,3) = 0;
+    J(9,4) = 0;
+
+    
+
+    J(10,1) =0;
+    J(10,2) =0;
+    J(10,3) =0;
+    J(10,4) =0;
+
+    J(11,1) =0;
+    J(11,2) =0;
+    J(11,3) =0;
+    J(11,4) =0;
+    
+    J(12,1) = -Qp(1)*g1*cos(Q(1));
+    J(12,2) = 0;
+    J(12,3) = 0;
+    J(12,4) = 0;
+
+    J(13,1) = -Qp(1)*g1*sin(Q(1));
+    J(13,2) = 0;
+    J(13,3) = 0;
+    J(13,4) = 0;
+
+    J(14,1) =0;
+    J(14,2) =0;
+    J(14,3) =0;
+    J(14,4) =0;
+
+    J(15,1) =0;
+    J(15,2) =0;
+    J(15,3) =0;
+    J(15,4) =0;
 
 end
