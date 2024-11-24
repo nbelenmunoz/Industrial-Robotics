@@ -6,9 +6,8 @@ n_steps = 100;               % Number of animation steps
 
 theta1_vals = linspace(0, pi/3, n_steps);    % Range for theta1
 theta2_vals = linspace(0, -pi/4, n_steps);   % Range for theta2
-d3_vals = linspace(0.2, 0.4, n_steps);       % Range for d3
-theta4_vals = linspace(0, pi/2, n_steps);    % Range for theta4
-
+theta3_vals = linspace(0, pi/2, n_steps);    % Range for theta3
+d4_vals = linspace(0.2, 0.4, n_steps);       % Range for d4
 
 fig = figure;
 hold on;
@@ -30,7 +29,7 @@ trajectory = zeros(n_steps, 3);  % End-effector trajectory
 
 % Animation loop
 for i = 1:n_steps
-    Q = [theta1_vals(i), theta2_vals(i), d3_vals(i), theta4_vals(i)];
+    Q = [theta1_vals(i), theta2_vals(i), theta3_vals(i), d4_vals(i)];
 
     S = SCARAdir4DOF(Q, L);
     trajectory(i, :) = S';  % Store end-effector position
