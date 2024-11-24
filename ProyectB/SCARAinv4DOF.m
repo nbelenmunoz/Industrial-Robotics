@@ -32,7 +32,7 @@ theta1 = atan2(y_prime, x_prime) - atan2(k2, k1);
 
 theta3 = phi - (theta1 + theta2);
 
-d4 = z;
+d3 = z;
 
 Q = [theta1; theta2; d4; theta3];
 end
