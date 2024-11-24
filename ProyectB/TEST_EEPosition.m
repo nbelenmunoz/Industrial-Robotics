@@ -13,25 +13,31 @@ phi_target = pi;
 S = [X_target; Y_target; Z_target; phi_target];
 
 Q1 = SCARAinv4DOF(S, L, 1);    
-Q2 = SCARAinv4DOF(S, L, -1);   
+Q2 = SCARAinv4DOF(S, L, -1);
+%Q3 = SCARAinv4DOF(S, L, -1);
 
 
 figure(1);
 PlotAreaSCARA4DOF(L, 1);           
 hold on;
 PlotScara4DOF(Q1, L, 'r', 1);      
-PlotScara4DOF(Q2, L, 'b', 1);      
+PlotScara4DOF(Q2, L, 'b', 1);
+%PlotScara4DOF(Q3, L, 'b', 1);
 hold off;
 
 S1 = SCARAdir4DOF(Q1, L); 
-S2 = SCARAdir4DOF(Q2, L);  
+S2 = SCARAdir4DOF(Q2, L);
+%S3 = SCARAdir4DOF(Q3, L);
 
 % Display the joint variables and end-effector positions
-disp('First solution joint variables Q1 (theta1, theta2, d3, theta4):');
+disp('First solution joint variables Q1 (theta1, theta2, d4, theta3):');
 disp(Q1);
 
-disp('Second solution joint variables Q2 (theta1, theta2, d3, theta4):');
+disp('Second solution joint variables Q2 (theta1, theta2, d4,  theta3):');
 disp(Q2);
+%disp('Second solution joint variables Q3 (theta1, theta2, d4,  theta3):');
+%disp(Q3);
+
 
 disp('End-effector position from forward kinematics S1 (X, Y, Z, phi):');
 disp(S1);
