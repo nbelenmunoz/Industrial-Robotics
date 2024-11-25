@@ -1,5 +1,5 @@
 function Q = SCARAinv4DOF(S, L, sol)
-Q=zeros(3,1);
+
 x = S(1);
 y = S(2);
 z = S(3);   
@@ -32,7 +32,7 @@ theta1 = atan2(y_prime, x_prime) - atan2(k2, k1);
 
 theta3 = phi - (theta1 + theta2);
 
-d3 = z;
+d4 = z;
 
-Q = [theta1; theta2; d4; theta3];
+Q = [theta1; theta2; theta3; d4];
 end
