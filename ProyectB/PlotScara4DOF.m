@@ -9,7 +9,6 @@ theta2 = Q(2);
 theta3 = Q(3);
 d4     = Q(4); % Not used in 2D plot
 
-
 l1 = L(1);
 l2 = L(2);
 l3 = L(3);
