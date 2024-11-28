@@ -26,9 +26,9 @@ Jg = [Jg1; Jg2; Jg3];
 % Gravity
 g_const = 9.81; % m/s^2
 
-Si = [-0.440; 0.400; 0.05; 3.927];       %[X; Y; Z; phi]
-S_mid =[-0.200; 0.400; 0.05; pi] ;     % Intermediate point
-Sf = [0.250; 0.600; 0.10; 1.57];      
+Si = [-0.600; -0.010; 0.000; pi];       %[X; Y; Z; phi]
+S_mid = [-0.440; 0.400; 0.05; pi];     % Intermediate point
+Sf = [0.200; 0.600; 0.10; 1.57];      
 
 Fx = 10; Fy = 10; Fz = 10; Mphi = 0;
 Fs = [Fx; Fy; Fz; Mphi];        
@@ -127,9 +127,9 @@ for i = 1:num_steps_total
         tz1 = tz1_1; tz2 = tz2_1; tz3 = tz3_1;
         
         % Compute S-curve for Segment 1
-        resx = Sshape(t, S_current(1), dSx, tx1, tx2, tx3);
-        resy = Sshape(t, S_current(2), dSy, ty1, ty2, ty3);
-        resz = Sshape(t, S_current(3), dSz, tz1, tz2, tz3);
+        resx = Sshape4DOF(t, S_current(1), dSx, tx1, tx2, tx3);
+        resy = Sshape4DOF(t, S_current(2), dSy, ty1, ty2, ty3);
+        resz = Sshape4DOF(t, S_current(3), dSz, tz1, tz2, tz3);
     
         % Orientation
         phi_t = S_current(4) + dPhi * (t / t3_1); % Assuming linear interpolation
@@ -145,9 +145,9 @@ for i = 1:num_steps_total
         tz1 = tz1_2; tz2 = tz2_2; tz3 = tz3_2;
         
         % Compute S-curve for Segment 2
-        resx = Sshape(t_seg, S_current(1), Sf(1) - S_current(1), tx1, tx2, tx3);
-        resy = Sshape(t_seg, S_current(2), Sf(2) - S_current(2), ty1, ty2, ty3);
-        resz = Sshape(t_seg, S_current(3), Sf(3) - S_current(3), tz1, tz2, tz3);
+        resx = Sshape4DOF(t_seg, S_current(1), Sf(1) - S_current(1), tx1, tx2, tx3);
+        resy = Sshape4DOF(t_seg, S_current(2), Sf(2) - S_current(2), ty1, ty2, ty3);
+        resz = Sshape4DOF(t_seg, S_current(3), Sf(3) - S_current(3), tz1, tz2, tz3);
     
         % Orientation
         phi_t = S_current(4) + (Sf(4) - S_current(4)) * (t_seg / t3_2);
