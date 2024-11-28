@@ -15,5 +15,6 @@ S = zeros(3,1);
 S(1) = l1*cos(theta1) + l2*cos(theta1 + theta2) + l3*cos(theta1 + theta2 + theta3);
 S(2) = l1*sin(theta1) + l2*sin(theta1 + theta2) + l3*sin(theta1 + theta2 + theta3);
 S(3) = d4;
+S(4) = theta1 + theta2 + theta3; 
 
 end
