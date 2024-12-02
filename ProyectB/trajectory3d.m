@@ -3,14 +3,13 @@ clear all; close all; clc
 l1 = 0.35;  
 l2 = 0.31;  % meters
 l3 = 0.21;  % meters
-L = [l1; l2; l3];  % Link lengths
 
 % COM distances from joint axes (meters)
 g1 = 0.2230181; 
 g2 = 0.2313302; 
 g3 = 0.0511910; % meters
-gL = [g1; g2; g3];  % Centers of mass distances
 
+L = [l1; l2; l3; g1; g2; g3]; 
 % Masses (kg)
 m1 = 4.626; 
 m2 = 3.15;  
@@ -168,17 +167,31 @@ for seg = 1:num_segments
         phi_ddot = 0;
         
         S = [resx.pos; resy.pos; resz.pos; phi_t];
-        Sp = [resx.vel; resy.vel; resz.vel; phi_dot];
-        Spp = [resx.acc; resy.acc; resz.acc; phi_ddot];
-    
+        % Initialize Sp and Spp as 15 x 1 vectors
+        Sp = zeros(15,1);
+        Sp(1) = resx.vel;   % X velocity
+        Sp(2) = resy.vel;   % Y velocity
+        Sp(3) = resz.vel;   % Z velocity
+        Sp(7) = phi_dot;    % Orientation rate
+        
+        Spp = zeros(15,1);
+        Spp(1) = resx.acc;   % X acceleration
+        Spp(2) = resy.acc;   % Y acceleration
+        Spp(3) = resz.acc;   % Z acceleration
+        Spp(7) = phi_ddot;   % Orientation acceleration
+        
         % Inverse Kinematics
         Q1 = SCARAinv4DOF(S, L, 1);
-    
-        % Jacobian and Its Derivative
-        J = SCARAjac4DOF(Q1, L);
+        
+        % Jacobian and Its Derivative using dynamic versions
+        J = SCARAjacdin4DOF(Q1, L);
+        % Solve for Q1p using least squares (since the system is overdetermined)
         Q1p = J \ Sp;
-        Jp = SCARAjacP4DOF(Q1, Q1p, L);
+        
+        Jp = SCARAjacPdin4DOF(Q1, Q1p, L);
+        % Compute Q1pp
         Q1pp = J \ (Spp - Jp * Q1p);
+
     
         % Joint Variables
         q = Q1;
@@ -247,7 +260,6 @@ for seg = 1:num_segments
     end
 end
 
-% Trim Unused Preallocated Space
 px_total = px_total(1:current_step-1);
 py_total = py_total(1:current_step-1);
 pz_total = pz_total(1:current_step-1);
