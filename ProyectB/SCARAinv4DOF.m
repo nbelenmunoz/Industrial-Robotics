@@ -17,8 +17,6 @@ cos_theta2 = (x_prime^2 + y_prime^2 - l1^2 - l2^2) / (2 * l1 * l2);
 if abs(cos_theta2) > 1
     error('The position is unreachable.');
 end
-
-
 if sol > 0
     theta2 = acos(cos_theta2);
 else
