@@ -1,4 +1,4 @@
-function res = Sshape(t, S0, dS, t1, t2, t3)
+function res = Sshape4DOF(t, S0, dS, t1, t2, t3)
     % Calculate average velocity V
     V = dS / (0.5 * t1 + (t2 - t1) + 0.5 * (t3 - t2));
     % Acceleration during acceleration phase
