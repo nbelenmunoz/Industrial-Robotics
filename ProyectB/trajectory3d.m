@@ -1,20 +1,21 @@
-% Define Link Lengths (meters)
-l1 = 0.35;  
-l2 = 0.31;  
-l3 = 0.21;  
+clear all; close all; clc
 
-% COM Distances from Joint Axes (meters)
+l1 = 0.35;  
+l2 = 0.31;  % meters
+l3 = 0.21;  % meters
+L = [l1; l2; l3];  % Link lengths
+
+% COM distances from joint axes (meters)
 g1 = 0.2230181; 
 g2 = 0.2313302; 
-g3 = 0.0511910; 
-
-L = [l1; l2; l3; g1; g2; g3]; 
+g3 = 0.0511910; % meters
+gL = [g1; g2; g3];  % Centers of mass distances
 
 % Masses (kg)
 m1 = 4.626; 
 m2 = 3.15;  
 m3 = 0.433; 
-m4 = 0.5;   
+m4 = 0.5;   % kg 
 m = [m1; m2; m3; m4];
 
 % Inertias about the COMs (kg·m^2)
@@ -23,10 +24,8 @@ Jg2 = 1.8614e+05 * 1e-6;
 Jg3 = 3.7115e+03 * 1e-6; 
 Jg = [Jg1; Jg2; Jg3];
 
-% Gravity Constant
 g_const = 9.81; % m/s^2
 
-% Define Waypoints (meters and radians)
 Waypoints1 = [
     -0.650,  0.450, 0.000, pi;       % Point 1: Initial
     -0.250,  0.500, 0.000, pi/2;     % Point 2: Orientation before Point 3
@@ -56,13 +55,12 @@ Waypoints3 = [
      0.250,  0.500, 0.000, pi/2;     % Point 2: Shifted right to X=0.250
      0.250,  0.650, 0.000, pi/2;     % Point 3: Shifted right to X=0.250
      0.250,  0.650, 0.010, pi/2;     % Point 4: Shifted up Z=0.010
-    -0.400,  0.300, 0.030, pi;       % Point 5: Shifted up Z=0.030
-    -0.550,  0.000, 0.030, pi;       % Point 6: Shifted up Z=0.030
+    -0.400,  0.300, 0.030, pi;       % Point 5: Shifted up Z=0.020
+    -0.550,  0.000, 0.030, pi;       % Point 6: Shifted up Z=0.020
     -0.720,  0.000, 0.020, pi;       % Point 7: Shifted up Z=0.020
-    -0.720,  0.000, 0.020, pi;       % Point 8: Descend to Z=0.020
+    -0.720,  0.000, 0.020, pi;       % Point 8: Descend to Z=0.010 (not all the way down)
     -0.550,  0.000, 0.000, pi        % Point 9: Similar to Point 6
 ];
-
 Waypoints_combined = [
     Waypoints1;
     Waypoints2(2:end, :);  % Skip Point 1 to avoid duplication
@@ -74,7 +72,6 @@ Waypoints = Waypoints_combined;
 num_waypoints = size(Waypoints, 1);
 num_segments = num_waypoints - 1;
 
-% Define Desired Speed (meters per second)
 desired_speed = 0.01; 
 
 steps_per_segment = zeros(num_segments, 1);
@@ -84,7 +81,6 @@ for seg = 1:num_segments
 end
 num_steps_total = sum(steps_per_segment);
 
-% Preallocate Storage Variables
 px_total = zeros(1, num_steps_total);
 py_total = zeros(1, num_steps_total);
 pz_total = zeros(1, num_steps_total);
@@ -117,7 +113,6 @@ time_total = zeros(1, num_steps_total);
 
 current_step = 1; % Initialize Step Counter
 
-% Initialize Visualization
 figure(1);
 clf;
 hold on;
@@ -144,13 +139,10 @@ xlim([-app, app]);
 ylim([-app, app]);
 zlim([0, app]);
 
-% Loop Through Each Segment
 for seg = 1:num_segments
-    % Define Start and End Points for This Segment
     S_start = Waypoints(seg, :)';
     S_end = Waypoints(seg + 1, :)';
     
-    % Compute Deltas
     dSx = S_end(1) - S_start(1);
     dSy = S_end(2) - S_start(2);
     dSz = S_end(3) - S_start(3);
@@ -164,52 +156,43 @@ for seg = 1:num_segments
     time_steps = linspace(0, (num_steps-1)*0.1, num_steps); % 0.1s timestep
     
     for i = 1:num_steps
-        t = (i-1)*0.1; % Current Time Within the Segment
+        t = (i-1)*0.1; 
         
+
         resx = Sshape4DOF(t, S_start(1), dSx, tx1, tx2, tx3);
         resy = Sshape4DOF(t, S_start(2), dSy, ty1, ty2, ty3);
         resz = Sshape4DOF(t, S_start(3), dSz, tz1, tz2, tz3);
         
-        % Orientation: Linear Interpolation
         phi_t = S_start(4) + dPhi * (t / ((num_steps-1)*0.1)); 
         phi_dot = dPhi / ((num_steps-1)*0.1);
         phi_ddot = 0;
         
-        % Assemble State Vectors
         S = [resx.pos; resy.pos; resz.pos; phi_t];
-        Sp_partial = [resx.vel; resy.vel; resz.vel; phi_dot];
-        Spp_partial = [resx.acc; resy.acc; resz.acc; phi_ddot];
+        Sp = [resx.vel; resy.vel; resz.vel; phi_dot];
+        Spp = [resx.acc; resy.acc; resz.acc; phi_ddot];
     
         % Inverse Kinematics
         Q1 = SCARAinv4DOF(S, L, 1);
+    
+        % Jacobian and Its Derivative
+        J = SCARAjac4DOF(Q1, L);
+        Q1p = J \ Sp;
+        Jp = SCARAjacP4DOF(Q1, Q1p, L);
+        Q1pp = J \ (Spp - Jp * Q1p);
+    
+        % Joint Variables
+        q = Q1;
+        q_dot = Q1p;
+        q_ddot = Q1pp;
+    
+        % Dynamics Calculations
+        M = computeInertiaMatrix(q, [L; g1; g2; g3], m, Jg);
+        C = computeCoriolisMatrix(q, q_dot, [L; g1; g2; g3], m, Jg);
+        G = computeGravityVector(q, [L; g1; g2; g3], m, g_const);
         
-        % Updated Jacobian and Dynamics
-        J_full = SCARAjacdin4DOF(Q1, L);  % Obtain the full 15x4 Jacobian
-        
-        % Construct the full Sp vector (15x1)
-        Sp_full = zeros(15, 1);
-        Sp_full(1:4) = Sp_partial;  % Assign desired end-effector velocities
-
-        % Define Weights (optional)
-        weights = ones(15, 1);
-        weights(1:4) = 10; % Prioritize end-effector velocities
-        W = diag(weights);
-        
-        % Solve for Q1p using weighted least-squares
-        Q1p = pinv(J_full' * W * J_full) * J_full' * W * Sp_full; % (4x15)*(15x4)*(4x1) -> (4x1)
-        
-        % Compute Jp (Derivative of Jacobian)
-        Jp_full = SCARAjacPdin4DOF(Q1, Q1p, L);  % 15x4
-        
-        Q1pp = zeros(4,1); 
-        
-        M = computeInertiaMatrix(Q1, L, m, Jg);
-        C = computeCoriolisMatrix(Q1, Q1p, L, m, Jg);
-        G = computeGravityVector(Q1, L, m, g_const);
-        tau = M * Q1pp + C * Q1p + G;
-
-        % Compute Link and Joint Points
-        [link_pts, joint_pts] = computeSCARAPoints(L, Q1);
+        tau = M * q_ddot + C * q_dot + G;
+    
+        [link_pts, joint_pts] = computeSCARAPoints(L, q);
        
         set(h_links, 'XData', link_pts(:,1), 'YData', link_pts(:,2), 'ZData', link_pts(:,3));
         set(h_joints, 'XData', joint_pts(:,1), 'YData', joint_pts(:,2), 'ZData', joint_pts(:,3));
@@ -239,21 +222,21 @@ for seg = 1:num_segments
         phi_dot_total(current_step) = phi_dot;   
         phi_ddot_total(current_step) = phi_ddot;
         
-        q1_total(current_step) = Q1(1); 
-        q1p_total(current_step) = Q1p(1); 
-        q1pp_total(current_step) = Q1pp(1);
+        q1_total(current_step) = q(1); 
+        q1p_total(current_step) = q_dot(1); 
+        q1pp_total(current_step) = q_ddot(1);
         
-        q2_total(current_step) = Q1(2); 
-        q2p_total(current_step) = Q1p(2); 
-        q2pp_total(current_step) = Q1pp(2);
+        q2_total(current_step) = q(2); 
+        q2p_total(current_step) = q_dot(2); 
+        q2pp_total(current_step) = q_ddot(2);
         
-        q3_total(current_step) = Q1(3); 
-        q3p_total(current_step) = Q1p(3); 
-        q3pp_total(current_step) = Q1pp(3);
+        q3_total(current_step) = q(3); 
+        q3p_total(current_step) = q_dot(3); 
+        q3pp_total(current_step) = q_ddot(3);
         
-        q4_total(current_step) = Q1(4); 
-        q4p_total(current_step) = Q1p(4); 
-        q4pp_total(current_step) = Q1pp(4);
+        q4_total(current_step) = q(4); 
+        q4p_total(current_step) = q_dot(4); 
+        q4pp_total(current_step) = q_ddot(4);
         
         tau_total(:, current_step) = tau;
         
@@ -364,6 +347,7 @@ subplot(4,1,4);
 plot(time_total, tau_total(4,:), 'k-');
 grid on; xlabel('Time (s)'); ylabel('Force on Joint 4 (N)');
 title('Joint 4 Force');
+
 
 %% Compute SCARA link and joint points
 function [link_pts, joint_pts] = computeSCARAPoints(L, Q)
