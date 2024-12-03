@@ -1,4 +1,4 @@
-clc; clear all; close all;
+clc; clear all; close all; 
 
 % Link lengths and other parameters (in meters)
 l1 = 0.35;  
@@ -16,7 +16,7 @@ L = [l1; l2; l3; g1; g2; g3];
 m1 = 4.626;
 m2 = 3.15;
 m3 = 0.433;
-payload = 0.5;
+payload = 0;
 m = [m1; m2; m3; payload];
 
 % Inertias about the COMs (in kg·m^2)
@@ -28,14 +28,13 @@ Jg = [Jg1; Jg2; Jg3];
 % Gravity constant (in m/s^2)
 g_const = 9.81;
 
-% Mass and inertia matrix (M)
 M = diag([payload, payload, payload, m3, m3, m3, (Jg1 + Jg2 + Jg3), m2, m2, m2, (Jg1 + Jg2), m1, m1, m1, Jg1]);
 
-% External force vector in Cartesian space (Fse)
+% External force vector
 Fse = zeros(15, 1);  
-Fse(1) = 10; % Force in X direction
-Fse(2) = 10; % Force in Y direction
-Fse(3) = 0;  % Force in Z direction
+Fse(1) = 10; 
+Fse(2) = 10; 
+Fse(3) = 0;  
 
 % Define the Waypoints for three trajectories
 Waypoints1 = [
@@ -47,7 +46,7 @@ Waypoints1 = [
     -0.550,  0.000, 0.010, pi;       % Point 6: In front of Point 7
     -0.720,  0.000, 0.010, pi;       % Point 7: Slightly in front
     -0.720,  0.000, 0.000, pi;       % Point 8: Going down
-    -0.550,  0.000, 0.010, pi        % Point 9: Similar to Point 6
+    -0.550,  0.000, 0.000, pi        % Point 9: Similar to Point 6
 ];
 
 Waypoints2 = [
@@ -64,16 +63,16 @@ Waypoints2 = [
 Waypoints3 = [
      0.250,  0.500, 0.000, pi/2;     % Point 2: Orientation before Point 3
      0.250,  0.650, 0.000, pi/2;     % Point 3: Slightly higher
-     0.250,  0.650, 0.010, pi/2;     % Point 4: Going up
-    -0.400,  0.300, 0.010, pi;       % Point 5: Intermediate for orientation change
-    -0.550,  0.000, 0.010, pi;       % Point 6: In front of Point 7
-    -0.720,  0.000, 0.010, pi;       % Point 7: Slightly in front
-    -0.720,  0.000, 0.000, pi;       % Point 8: Going down
+     0.250,  0.650, 0.030, pi/2;     % Point 4: Going up
+    -0.400,  0.300, 0.030, pi;       % Point 5: Intermediate for orientation change
+    -0.550,  0.000, 0.030, pi;       % Point 6: In front of Point 7
+    -0.720,  0.000, 0.030, pi;       % Point 7: Slightly in front
+    -0.720,  0.000, 0.020, pi;       % Point 8: Going down
     -0.550,  0.000, 0.010, pi        % Point 9: Similar to Point 6
     -0.650,  0.450, 0.000, pi;       % Point 1: Initial
 ];
 
-% Combine all waypoints
+% Waypoints mix
 Waypoints = [Waypoints1; Waypoints2; Waypoints3];
 
 figure(1);
@@ -99,6 +98,11 @@ time = zeros(1, total_time_steps);
 px_total = zeros(1, total_time_steps);
 py_total = zeros(1, total_time_steps);
 
+% Initialize arrays to store task-space data
+S_total = zeros(total_time_steps, 4);
+Sp_total = zeros(total_time_steps, 4);
+Spp_total = zeros(total_time_steps, 4);
+
 h_links = plot3([0, 0], [0, 0], [0, 0], 'k-', 'LineWidth', 2);
 h_joints = plot3(0, 0, 0, 'ko', 'MarkerSize', 6, 'MarkerFaceColor', 'k');
 h_ee = plot3(0, 0, 0, 'ro', 'MarkerSize', 6, 'MarkerFaceColor', 'r');
@@ -121,25 +125,28 @@ for wp_idx = 1:size(Waypoints, 1) - 1
     Six = Si(1); dSx = Ds(1);
     Siy = Si(2); dSy = Ds(2);
     Siz = Si(3); dSz = Ds(3);
-    dPhi = Ds(4);
+    Siphi = Si(4); dPhi = Ds(4);
     
-    % Animation loop for each segment
+    % Trajectory parameters
+    t1 = 0.3; % Acceleration time
+    t2 = 0.6; % Constant velocity time
+    t3 = 1;   % Deceleration time
+    
     for i = 1:length(time_steps)
         t = time_steps(i);
-        % Compute S-curve trajectories for X, Y, and Z
-        resx = Sshape(t, Six, dSx, 0.3, 0.6, 1);
-        resy = Sshape(t, Siy, dSy, 0.3, 0.6, 1);
-        resz = Sshape(t, Siz, dSz, 0.3, 0.6, 1);  % Compute Z trajectory
+        % Compute S-curve trajectories for X, Y, Z, and Phi
+        resx = Sshape(t, Six, dSx, t1, t2, t3);
+        resy = Sshape(t, Siy, dSy, t1, t2, t3);
+        resz = Sshape(t, Siz, dSz, t1, t2, t3);
+        res_phi = Sshape(t, Siphi, dPhi, t1, t2, t3);
+
+        S = [resx.pos; resy.pos; resz.pos; res_phi.pos];        
+        Sp = [resx.vel; resy.vel; resz.vel; res_phi.vel]; 
+        Spp = [resx.acc; resy.acc; resz.acc; res_phi.acc]; 
         
-        % Orientation
-        phi_t = Si(4) + (Sf(4) - Si(4)) * (t / 1); 
-        phi_dot = (Sf(4) - Si(4)) / 1;             
-        phi_ddot = 0;                               
-        
-        % Assemble state vectors
-        S = [resx.pos; resy.pos; resz.pos; phi_t];        
-        Sp = [resx.vel; resy.vel; resz.vel; phi_dot]; 
-        Spp = [resx.acc; resy.acc; resz.acc; phi_ddot]; 
+        S_total(idx, :) = S';
+        Sp_total(idx, :) = Sp';
+        Spp_total(idx, :) = Spp';
         
         % Inverse kinematics
         Q1 = SCARAinv4DOF(S, L, 1);
@@ -159,8 +166,7 @@ for wp_idx = 1:size(Waypoints, 1) - 1
         Fs = (Fse + Fsi);
         Fcq = (-Jd' * Fs) / 1000; % force in the joint space (in Nm)
         Fq(idx, :) = Fcq';
-        
-        % Update plots
+
         [link_pts, joint_pts] = computeSCARAPoints(L, Q1);
         
         set(h_links, 'XData', link_pts(:,1), 'YData', link_pts(:,2), 'ZData', link_pts(:,3));
@@ -173,8 +179,7 @@ for wp_idx = 1:size(Waypoints, 1) - 1
         set(h_traj, 'XData', trajectory(1:idx,1), 'YData', trajectory(1:idx,2), 'ZData', trajectory(1:idx,3));
         
         drawnow;
-    
-        % Store data for plotting dynamics later
+
         time(idx) = t + (wp_idx - 1);
         idx = idx + 1;
     end
@@ -197,69 +202,56 @@ xlabel('X Position (m)');
 ylabel('Y Position (m)');
 title('End-Effector Trajectory in XY Plane');
 
-% Motion Curves for each DOF
-S0 = [0, 0, 0, 0]; % Initial position for the 4 DOFs (base and 3 joints)
-dS = [1, 1, 1, 1]; % Final displacement for each DOF
-t1 = 3; % Acceleration time
-t2 = 6; % Constant velocity time
-t3 = 9; % Deceleration time
-i = 1; % Index for recording time and trajectory data
-time_motion = 0:0.1:t3; % Time vector
+% Motion Curves with S coordinates
+task_vars = {'X', 'Y', 'Z', '\phi'};
 
-p = zeros(4, length(time_motion));
-v = zeros(4, length(time_motion));
-a = zeros(4, length(time_motion));
-
-% Trajectory calculation for each time step
-for t = time_motion
-    for dof = 1:4
-        res = Sshape(t, S0(dof), dS(dof), t1, t2, t3);
-        p(dof, i) = res.pos;
-        v(dof, i) = res.vel;
-        a(dof, i) = res.acc;
-    end
-    i = i + 1;
-end
-
-% Plot the results
-figure;
-for dof = 1:4
-    subplot(4, 3, (dof - 1) * 3 + 1);
-    plot(time_motion, p(dof, :), 'b-');
-    title(['Position for DOF ', num2str(dof)]);
+for joint = 1:4 
+    figure;
+    p = S_total(:, joint);
+    v = Sp_total(:, joint);
+    a = Spp_total(:, joint);
+    
+    % Plot position
+    subplot(3,1,1);
+    plot(time, p, 'b-');
     grid on;
     xlabel('Time (s)');
-    ylabel('Position (m or rad)');
-
-    subplot(4, 3, (dof - 1) * 3 + 2);
-    plot(time_motion, v(dof, :), 'r-');
-    title(['Velocity for DOF ', num2str(dof)]);
+    ylabel('Position');
+    title(['Position for ', task_vars{joint}]);
+    
+    % Plot velocity
+    subplot(3,1,2);
+    plot(time, v, 'r-');
     grid on;
     xlabel('Time (s)');
-    ylabel('Velocity (m/s or rad/s)');
-
-    subplot(4, 3, (dof - 1) * 3 + 3);
-    plot(time_motion, a(dof, :), 'g-');
-    title(['Acceleration for DOF ', num2str(dof)]);
+    ylabel('Velocity');
+    title(['Velocity for ', task_vars{joint}]);
+    
+    % Plot acceleration
+    subplot(3,1,3);
+    plot(time, a, 'g-');
     grid on;
     xlabel('Time (s)');
-    ylabel('Acceleration (m/s^2 or rad/s^2)');
+    ylabel('Acceleration');
+    title(['Acceleration for ', task_vars{joint}]);
 end
 
 %%
 function [link_pts, joint_pts] = computeSCARAPoints(L, Q)
     % Extract joint values
-    theta1 = Q(1); %joint link 1
-    theta2 = Q(2); %joint link 2
+    theta1 = Q(1); % Joint link 1
+    theta2 = Q(2); % Joint link 2
     theta3 = Q(3);
-    d4 = Q(4); %prismatic rotation
-    
+    d4 = Q(4); % Prismatic joint (vertical movement)
 
-    % positions
+    % Base position
     p0 = [0, 0, d4];  % Base joint position (Z axis)
+    
+    % Positions of each joint/link
     p1 = [L(1)*cos(theta1), L(1)*sin(theta1), d4];  % Joint 1 position
     p2 = p1 + [L(2)*cos(theta1 + theta2), L(2)*sin(theta1 + theta2), 0];  % Joint 2 position
     p3 = p2 + [L(3)*cos(theta1 + theta2 + theta3), L(3)*sin(theta1 + theta2 + theta3), 0];  % End-effector
+    
     link_pts = [p0; p1; p2; p3];  % Points to form links
     joint_pts = [p0; p1; p2; p3]; % Joint positions (for markers)
 end
@@ -307,9 +299,8 @@ function PlotAreaSCARA4DOF(L, fig)
     xlim([-app, app]);
     ylim([-app, app]);
     zlim([0, app]);
-    xlabel('X (mm)');
-    ylabel('Y (mm)');
-    zlabel('Z (mm)');
+    xlabel('X (m)');
+    ylabel('Y (m)');
+    zlabel('Z (m)');
 end
-
 
