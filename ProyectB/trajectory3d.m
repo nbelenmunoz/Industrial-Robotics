@@ -102,6 +102,9 @@ py_total = zeros(1, total_time_steps);
 S_total = zeros(total_time_steps, 4);
 Sp_total = zeros(total_time_steps, 4);
 Spp_total = zeros(total_time_steps, 4);
+Q_total = zeros(total_time_steps, 4);
+Qp_total = zeros(total_time_steps, 4);
+Qpp_total = zeros(total_time_steps, 4);
 
 h_links = plot3([0, 0], [0, 0], [0, 0], 'k-', 'LineWidth', 2);
 h_joints = plot3(0, 0, 0, 'ko', 'MarkerSize', 6, 'MarkerFaceColor', 'k');
@@ -135,10 +138,10 @@ for wp_idx = 1:size(Waypoints, 1) - 1
     for i = 1:length(time_steps)
         t = time_steps(i);
         % Compute S-curve trajectories for X, Y, Z, and Phi
-        resx = Sshape(t, Six, dSx, t1, t2, t3);
-        resy = Sshape(t, Siy, dSy, t1, t2, t3);
-        resz = Sshape(t, Siz, dSz, t1, t2, t3);
-        res_phi = Sshape(t, Siphi, dPhi, t1, t2, t3);
+        resx = Sshape4DOF(t, Six, dSx, t1, t2, t3);
+        resy = Sshape4DOF(t, Siy, dSy, t1, t2, t3);
+        resz = Sshape4DOF(t, Siz, dSz, t1, t2, t3);
+        res_phi = Sshape4DOF(t, Siphi, dPhi, t1, t2, t3);
 
         S = [resx.pos; resy.pos; resz.pos; res_phi.pos];        
         Sp = [resx.vel; resy.vel; resz.vel; res_phi.vel]; 
@@ -166,6 +169,11 @@ for wp_idx = 1:size(Waypoints, 1) - 1
         Fs = (Fse + Fsi);
         Fcq = (-Jd' * Fs) / 1000; % force in the joint space (in Nm)
         Fq(idx, :) = Fcq';
+
+         
+        Q_total(idx, :) = Q1';
+        Qp_total(idx, :) = Q1p';
+        Qpp_total(idx, :) = Q1pp';
 
         [link_pts, joint_pts] = computeSCARAPoints(L, Q1);
         
@@ -236,6 +244,44 @@ for joint = 1:4
     title(['Acceleration for ', task_vars{joint}]);
 end
 
+% Motion Curves in Q
+task_varsq = {'Xq', 'Yq', 'Zq', '\phi q'};
+for joint = 1:4 
+    pq = Q_total(:, joint);
+    vq = Qp_total(:, joint);
+    aq = Qpp_total(:, joint);
+    figure;
+
+     % Plot position
+    subplot(3,1,1);
+    plot(time, pq, 'b-');
+    grid on;
+    xlabel('Time (s)');
+    ylabel('Position');
+    title(['Position for ', task_varsq{joint}]);
+
+
+    % Plot velocity
+    subplot(3,1,2);
+    plot(time, vq, 'r-');
+    grid on;
+    xlabel('Time (s)');
+    ylabel('Velocity');
+    title(['Velocity for ', task_varsq{joint}]);
+    
+    % Plot acceleration
+    subplot(3,1,3);
+    plot(time, aq, 'g-');
+    grid on;
+    xlabel('Time (s)');
+    ylabel('Acceleration');
+    title(['Acceleration for ', task_varsq{joint}]);
+end
+
+
+
+
+
 %%
 function [link_pts, joint_pts] = computeSCARAPoints(L, Q)
     % Extract joint values
@@ -255,6 +301,7 @@ function [link_pts, joint_pts] = computeSCARAPoints(L, Q)
     link_pts = [p0; p1; p2; p3];  % Points to form links
     joint_pts = [p0; p1; p2; p3]; % Joint positions (for markers)
 end
+
 
 %% Plot SCARA Workspace Area Function
 function PlotAreaSCARA4DOF(L, fig)
