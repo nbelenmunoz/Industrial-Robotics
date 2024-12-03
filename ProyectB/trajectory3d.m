@@ -56,7 +56,7 @@ Waypoints2 = [
     -0.400,  0.300, 0.020, pi;       % Point 5: Intermediate for orientation change
     -0.550,  0.000, 0.020, pi;       % Point 6: In front of Point 7
     -0.720,  0.000, 0.020, pi;       % Point 7: Slightly in front
-    -0.720,  0.000, 0.010, pi;       % Point 8: Going down
+    -0.720,  0.000, 0.010, pi;       % Poi8: Going down
     -0.550,  0.000, 0.000, pi        % Point 9: Similar to Point 6
 ];
 
@@ -98,7 +98,6 @@ time = zeros(1, total_time_steps);
 px_total = zeros(1, total_time_steps);
 py_total = zeros(1, total_time_steps);
 
-% Initialize arrays to store task-space data
 S_total = zeros(total_time_steps, 4);
 Sp_total = zeros(total_time_steps, 4);
 Spp_total = zeros(total_time_steps, 4);
@@ -245,7 +244,7 @@ for joint = 1:4
 end
 
 % Motion Curves in Q
-task_varsq = {'Xq', 'Yq', 'Zq', '\phi q'};
+task_varsq = {'Xq', 'Yq','\phi q','Zq'};
 for joint = 1:4 
     pq = Q_total(:, joint);
     vq = Qp_total(:, joint);
