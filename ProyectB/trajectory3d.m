@@ -244,7 +244,7 @@ for joint = 1:4
 end
 
 % Motion Curves in Q
-task_varsq = {'Xq', 'Yq','\phi q','Zq'};
+task_varsq = {'Joint1', 'Joint2', 'Joint3', 'Prismatic joint'};
 for joint = 1:4 
     pq = Q_total(:, joint);
     vq = Qp_total(:, joint);
