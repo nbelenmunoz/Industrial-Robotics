@@ -3,7 +3,7 @@ max_motor_omega_rpm = 6000; % Maximum angular velocity of the motor (rpm)
 motor_reduction_ratio = 1/45; % Motor reduction ratio (verify appropriateness later)
 
 % Transmission Ratios for Joints
-transmission_ratios = 1 ./ [1, 2.5, 2, 2]; % [prismatic joint, shoulder, elbow, wrist]
+transmission_ratios = 1 ./ [2.5, 2, 2, 1,]; % [shoulder, elbow, wrist,prismatic joint]
 
 % Maximum Joint Angular Velocities (rpm)
 max_joint_omega_rpm = max_motor_omega_rpm * motor_reduction_ratio * transmission_ratios;
@@ -12,9 +12,9 @@ max_joint_omega_rpm = max_motor_omega_rpm * motor_reduction_ratio * transmission
 l1 = 0.35; % Shoulder link length
 l2 = 0.31;    % Elbow link length
 l3 = 0.21;    % Wrist link length
-l0 = 0.40;     % Base height
+ld = 0.40;     % Base height
 
-link_lengths = [l0, l1, l2, l3];
+link_lengths = [l1, l2, l3, ld];
 
 % Maximum Joint Linear Velocities (m/s)
 max_joint_omega_rad_s = max_joint_omega_rpm * 2 * pi / 60; % Convert from rpm to rad/s
@@ -25,12 +25,12 @@ fprintf('Maximum Linear Velocity on Each Joint (m/s):\n');
 disp(max_joint_linear_velocity);
 
 % Maximum Acceleration/Deceleration Parameters
-Jg0 = 0.001;          % Base inertia (kg·m^2) - placeholder, re-check this value
+Jgd = 0.001;          % Base inertia (kg·m^2) - placeholder, re-check this value
 Jg1 = 2.8534e+05 * 1e-6; % Shoulder inertia (kg·m^2)
 Jg2 = 1.8614e+05 * 1e-6;    % Elbow inertia (kg·m^2)
 Jg3 = 3.7115e+03 * 1e-6;    % Wrist inertia (kg·m^2)
 
-joint_inertias = [Jg0, Jg1, Jg2, Jg3];
+joint_inertias = [Jg1, Jg2, Jg3,Jgd];
 
 % Maximum Motor Torque
 max_motor_torque = 0.56; % Maximum motor torque (N·m)
