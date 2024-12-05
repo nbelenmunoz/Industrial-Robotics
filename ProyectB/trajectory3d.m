@@ -31,10 +31,9 @@ g_const = 9.81;
 M = diag([payload, payload, payload, m3, m3, m3, (Jg1 + Jg2 + Jg3), m2, m2, m2, (Jg1 + Jg2), m1, m1, m1, Jg1]);
 
 % External force vector
-Fse = zeros(15, 1);  
-Fse(1) = 10; 
-Fse(2) = 10; 
-Fse(3) = 0;  
+Fse = zeros(15, 1);        % Initialize external force vector
+Fse(3) = payload * g_const;       % Gravitational force (N) in the z-direction
+
 
 % Define the Waypoints for three trajectories
 Waypoints1 = [
