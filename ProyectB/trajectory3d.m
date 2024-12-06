@@ -1,5 +1,6 @@
-clc; clear all; close all; 
+clear all; close all; clc;
 
+% Robot Parameters
 l1 = 0.35;  
 l2 = 0.31;  
 l3 = 0.21; 
@@ -34,25 +35,50 @@ M = diag([payload, payload, payload, m3, m3, m3, (Jg1 + Jg2 + Jg3), m2, m2, m2, 
 % External force vector
 Fse = zeros(16, 1);  
 Fse(3) = payload * g_const;  % Gravitational force (N) in the z-direction
-        
-% Maximum Joint Velocities (rad/s)
-omega_max = [5.585; 6.981; 6.981; 13.963];  % [Shoulder; Elbow; Wrist; Prismatic]
 
-% Safety Factor
-safety_factor = 1.5;
+% Motor Parameters
+max_motor_omega_rpm = 6000; % Motor max speed before reduction
+motor_reduction_ratio = 1/45; 
 
-% Required Joint Torques (Nm)
-tau_joint_required = [0.2404; 0.2891; 6.6540; 89.6007];  % [Shoulder; Elbow; Wrist; Prismatic]
+% Effective Motor Speed after Internal Reduction
+effective_motor_max_rpm = max_motor_omega_rpm * motor_reduction_ratio; % 133.33 rpm
 
-% Total Transmission Ratios for Each Joint
-GR_total = [1/112.5; 1/90; 1/90; 1/45];  % [Shoulder; Elbow; Wrist; Prismatic]
+% Transmission Ratios for Joints
+transmission_ratios = [2.5, 2, 2, 1]; % [shoulder, elbow, wrist, prismatic]
 
-% Calculate Motor Torque Requirements
-tau_motor_required = tau_joint_required ./ GR_total;  % [27.045; 26.019; 598.86; 4032.0315]
+% Maximum Joint Speeds
+joint_max_speed_rpm = effective_motor_max_rpm ./ transmission_ratios; % RPM
+joint_max_speed_rad_s = joint_max_speed_rpm * (2 * pi / 60); % Convert to rad/s
 
-% Apply Safety Factor
-tau_max = tau_motor_required * safety_factor;  % [40.5675; 39.0285; 898.29; 6048.04725]
+% Motor Torque
+motor_max_torque = 0.56; % Nm
 
+% Maximum Joint Torques
+joint_max_torque = motor_max_torque .* transmission_ratios; % [shoulder, elbow, wrist, prismatic]
+
+% Moment of Inertia
+motor_inertia = 0.000009; % kg·m²
+joint_inertia = motor_inertia .* (transmission_ratios.^2); % [shoulder, elbow, wrist, prismatic]
+
+% Display the Results
+fprintf('Maximum Joint Speeds (RPM):\n');
+disp(joint_max_speed_rpm);
+
+fprintf('Maximum Joint Speeds (rad/s):\n');
+disp(joint_max_speed_rad_s);
+
+fprintf('Maximum Joint Torques (Nm):\n');
+disp(joint_max_torque);
+
+fprintf('Effective Joint Inertia (kg·m²):\n');
+disp(joint_inertia);
+
+% Updated Safety Limits
+omega_max = joint_max_speed_rad_s'; % Update maximum angular velocities in rad/s
+tau_max = joint_max_torque'; % Update maximum torque limits
+
+% Updated Constraints in Trajectory Planning
+alpha_max = tau_max ./ joint_inertia; % Maximum angular acceleration
 
 % Initialize Constraint Flags
 Waypoints1 = [
@@ -170,13 +196,10 @@ zlim([0, app]);
 
 idx = 1;
 for wp_idx = 1:total_segments
-    % Check if the next waypoint has a payload change
     if any(payload_changes(:,1) == wp_idx + 1)
-    % Update payload dynamically
     new_payload = payload_changes(payload_changes(:,1) == wp_idx + 1, 2);
     current_payload = new_payload;
 
-    % Update masses and inertia matrix
     m4 = m1 + m2 + m3 + current_payload;
     M = diag([current_payload, current_payload, current_payload,(Jg1 + Jg2 + Jg3), m3, m3, m3,(Jg1 + Jg2), m2, m2, m2, Jg1, m1, m1, m1, m4]);
 
@@ -196,10 +219,10 @@ for wp_idx = 1:total_segments
     Siz = Si(3); dSz = Ds(3);
     Siphi = Si(4); dPhi = Ds(4);
 
-    % Trajectory parameters (can be adjusted or made dynamic if needed)
-    t1 = 1.0; % Acceleration time
-    t2 = 2.0; % Constant velocity time
-    t3 = 1.5; % Deceleration time
+    % Trajectory parameters 
+    t1 = 4.0; % Acceleration time
+    t2 = 8.0; % Constant velocity time
+    t3 = 4.5; % Deceleration time
 
     for i = 1:length(time_steps)
         t = time_steps(i);
@@ -280,20 +303,39 @@ end
 
 
 figure;
-hold on;
+
+% Subplot for Torque 1
+subplot(4, 1, 1);
 plot(time_vec, Fq(:, 1), 'b', 'DisplayName', 'Torque 1');
-plot(time_vec, Fq(:, 2), 'r', 'DisplayName', 'Torque 2');
-plot(time_vec, Fq(:, 3), 'g', 'DisplayName', 'Torque 3');
-plot(time_vec, Fq(:, 4), 'k', 'DisplayName', 'Force on Prismatic Joint');
-
-%plot(time_vec, Fq(:, 4), 'DisplayName', 'Force on Prismatic Joint');
-
-grid on;
+title('Torque 1');
 xlabel('Time (s)');
-ylabel('Joint Torques/Forces (Nm or N)');
-legend('Location', 'best');
-title('Joint Torques and Forces');
-hold off;
+ylabel('Torque (Nm)');
+grid on;
+
+% Subplot for Torque 2
+subplot(4, 1, 2);
+plot(time_vec, Fq(:, 2), 'r', 'DisplayName', 'Torque 2');
+title('Torque 2');
+xlabel('Time (s)');
+ylabel('Torque (Nm)');
+grid on;
+
+% Subplot for Torque 3
+subplot(4, 1, 3);
+plot(time_vec, Fq(:, 3), 'g', 'DisplayName', 'Torque 3');
+title('Torque 3');
+xlabel('Time (s)');
+ylabel('Torque (Nm)');
+grid on;
+
+% Subplot for Force on Prismatic Joint
+subplot(4, 1, 4);
+plot(time_vec, Fq(:, 4), 'k', 'DisplayName', 'Force on Prismatic Joint');
+title('Force on Prismatic Joint');
+xlabel('Time (s)');
+ylabel('Force (N)');
+grid on;
+
 
 figure;
 plot(px_total, py_total, 'b-', 'LineWidth', 2);
