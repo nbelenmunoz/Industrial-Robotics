@@ -90,8 +90,8 @@ total_segments = size(Waypoints, 1) - 1;
 
 
 % Trajectory Parameters
-Vel = 0.5;
-Accel = 0.3;
+Vel = 3;
+Accel = 3;
 Decel = Accel;
 dt = 0.1;
 
@@ -111,7 +111,6 @@ figure;
 clf;
 hold on;
 grid on;
-axis equal;
 xlabel('X-axis (m)');
 ylabel('Y-axis (m)');
 zlabel('Z-axis (m)');
@@ -120,6 +119,7 @@ view(45, 30);
 
 % Plot the workspace area
 PlotAreaSCARA4DOF(L(1:3), 1);  
+axis([-1.0 1.0 -1.0 1.0 0 0.04]);
 
 % Create plot handles for the robot's visualization
 h_links = plot3([0, 0], [0, 0], [0, 0], 'k-', 'LineWidth', 2);
@@ -130,9 +130,12 @@ h_traj = plot3(0, 0, 0, 'b-', 'LineWidth', 1.5);
 trajectory = zeros(length(time_traj), 3); 
 idx = 1;
 
+test = [];
 for t_idx = 1:length(time_traj)
     Q = trajectory_joint(:, t_idx);
     [link_pts, joint_pts] = computeSCARAPoints(L(1:3), Q);
+    
+    % test = joint_pts(t_idx);
 
     set(h_links, 'XData', link_pts(:,1), 'YData', link_pts(:,2), 'ZData', link_pts(:,3));
     set(h_joints, 'XData', joint_pts(:,1), 'YData', joint_pts(:,2), 'ZData', joint_pts(:,3));
@@ -234,6 +237,14 @@ xlabel('X Position (m)');
 ylabel('Y Position (m)');
 title('End-Effector Trajectory in XY Plane');
 
+% Plot the XZ projection of the end-effector trajectory
+figure;
+plot(trajectory(:,1), trajectory(:,3), 'b-', 'LineWidth', 2);
+grid on;
+xlabel('X Position (m)');
+ylabel('Z Position (m)');
+title('End-Effector Trajectory in XZ Plane');
+
 Q   = Q_total(end, :);     
 Qp  = Qp_total(end, :)';   
 Qpp = Qpp_total(end, :)';
@@ -284,45 +295,47 @@ for k = 1:length(time_vec)
     Fq(k, :) = (-J' * Fs)';
 end
 
+% Display torque and force values
+max_Fq = zeros(1,size(Fq,2));
+min_Fq = zeros(1,size(Fq,2));
 
-% Display the final forces and torques
-disp('Forces and Torques at the final time step:');
-disp(Fq(end, :));
+ii = 1;
+for ii = 1:size(Fq,2)
+    max_Fq(ii) = max(Fq(:,ii));
+    min_Fq(ii) = min(Fq(:,ii));
+end
 
+% Display the maximum and minimum forces and torques
+disp('Maximum Forces and Torques (Nm):');
+disp(max_Fq);
+disp('Minimum Forces and Torques (Nm):');
+disp(min_Fq);
+
+% Plot all torques in a single figure
 figure;
+subplot (2,1,1)
+plot(time_vec, Fq(:, 1), 'b', 'DisplayName', 'Joint 1');
+hold on;
+plot(time_vec, Fq(:, 2), 'r', 'DisplayName', 'Joint 2');
+plot(time_vec, Fq(:, 3), 'g', 'DisplayName', 'Joint 3');
+hold off;
 
-% Subplot for Torque 1
-subplot(4, 1, 1);
-plot(time_vec, Fq(:, 1), 'b', 'DisplayName', 'Torque 1');
-title('Torque 1');
+% Add title and labels
+title('Torque on Revolute Joints');
 xlabel('Time (s)');
 ylabel('Torque (Nm)');
-grid on;
 
-% Subplot for Torque 2
-subplot(4, 1, 2);
-plot(time_vec, Fq(:, 2), 'r', 'DisplayName', 'Torque 2');
-title('Torque 2');
-xlabel('Time (s)');
-ylabel('Torque (Nm)');
+% Add grid and legend
 grid on;
+legend('show');
 
-% Subplot for Torque 3
-subplot(4, 1, 3);
-plot(time_vec, Fq(:, 3), 'g', 'DisplayName', 'Torque 3');
-title('Torque 3');
-xlabel('Time (s)');
-ylabel('Torque (Nm)');
-grid on;
-
-% Subplot for Force on Prismatic Joint (if applicable)
-subplot(4, 1, 4);
+% Subplot for Force on Prismatic Joint
+subplot(2,1,2);
 plot(time_vec, Fq(:, 4), 'k', 'DisplayName', 'Force on Prismatic Joint');
 title('Force on Prismatic Joint');
 xlabel('Time (s)');
 ylabel('Force (N)');
 grid on;
-
 
 %% Helper functions
 function [link_pts, joint_pts] = computeSCARAPoints(L, Q)
