@@ -1,12 +1,10 @@
 clear all; close all; clc;
-
-% Robot Parameters
-% Link length in meters
+%% Robot Parameters
+% Link length [m]
 l1 = 0.35;  
 l2 = 0.31;  
 l3 = 0.21; 
-
-% Center of gravity/mass
+% Center of mass [m]
 g1 = 0.1904;   
 g2 = 0.1640;    
 g3 = 0.0512;  
@@ -14,31 +12,31 @@ g = [g1; g2; g3];
 
 L = [l1; l2; l3; g1; g2; g3];
 
-% Masses (in kg)
+% Masses [Kg]
 m1 = 4.626;
 m2 = 3.15;
 m3 = 0.433;
 payload = 0;  % Initial payload mass
 m4 = m1 + m2 + m3 + payload;
-
 m = [m1; m2; m3; payload];
 
-% Inertias about the COMs (in kg·m^2)
+% Inertias about the COMs [kg·m^2]
 Jg1 = 0.16641166281;  
 Jg2 = 0.07728488799;  
 Jg3 = 0.00368451264;  
 Jg = [Jg1; Jg2; Jg3];
 
-% Gravity constant (in m/s^2)
+% Gravity constant [m/s^2]
 g_const = 9.81;
 
-% Inertia matrix (16x16)
+% Inertia matrix 
 M = diag([payload, payload, payload, m3, m3, m3, (Jg1 + Jg2 + Jg3), m2, m2, m2, (Jg1 + Jg2), m1, m1, m1, Jg1, m4]);
 
-% External force vector
+%External force vector
 Fse = zeros(16, 1);  
-Fse(3) = payload * g_const;  % Gravitational force (N) in the z-direction
+Fse(16) = -(m4) * g_const;
 
+%% Definition of waypoints for trayectory
 Waypoints1 = [
     -0.650,  0.450, 0.001, pi;       % Point 1: home
     -0.250,  0.400, 0.001, pi/2      % Point 2: travel
@@ -81,32 +79,36 @@ Waypoints3 = [
     -0.550,  0.000, 0.024, pi;       % Point 32: retract
     -0.550,  0.000, 0.001, pi;       % Point 33: adjust height
     -0.400,  0.300, 0.001, pi;       % Point 34: travel
-    -0.650,  0.450, 0.001, pi;       % Point 35: Initial
+    -0.650,  0.450, 0.001, pi;       % Point 35: back to home
 ];
 
 % Waypoints mix
 Waypoints = [Waypoints1; Waypoints2; Waypoints3];
 total_segments = size(Waypoints, 1) - 1;
 
-
-% Trajectory Parameters
+%% Trayectory parameters
 Vel = 3;
 Accel = 3;
 Decel = Accel;
 dt = 0.1;
 
-% Inverse Kinematics for All Waypoints
+% Conversion Waypoints to Q space with Inverse Kinematics
 Q_waypoints = zeros(size(Waypoints));
 for i = 1:size(Waypoints, 1)
     Q_waypoints(i, :) = SCARAinv4DOF(Waypoints(i, :), [l1, l2, l3], 1);
 end
 Q_waypoints = Q_waypoints';  
 
-% Generate Joint-Space Trajectory
+%% Generate Joint-Space Trajectory
+%Parabola and lines
 [time_traj, trajectory_joint, trajectory_joint_vel, trajectory_joint_ac] = ...
     LineParabola(Q_waypoints, Vel, Accel, Decel, dt);
 
-% Visualization Setup
+%Cubic Spline
+% [time_traj, trajectory_joint, trajectory_joint_vel, trajectory_joint_ac] = ...
+%     CubicSpline(Q_waypoints, Vel, Accel, Decel, dt);
+
+%% Visualization Setup for trajectory 
 figure;
 clf;
 hold on;
@@ -127,15 +129,13 @@ h_joints = plot3(0, 0, 0, 'ko', 'MarkerSize', 6, 'MarkerFaceColor', 'k');
 h_ee = plot3(0, 0, 0, 'ro', 'MarkerSize', 6, 'MarkerFaceColor', 'r');
 h_traj = plot3(0, 0, 0, 'b-', 'LineWidth', 1.5);
 
+
 trajectory = zeros(length(time_traj), 3); 
 idx = 1;
 
-test = [];
 for t_idx = 1:length(time_traj)
     Q = trajectory_joint(:, t_idx);
     [link_pts, joint_pts] = computeSCARAPoints(L(1:3), Q);
-    
-    % test = joint_pts(t_idx);
 
     set(h_links, 'XData', link_pts(:,1), 'YData', link_pts(:,2), 'ZData', link_pts(:,3));
     set(h_joints, 'XData', joint_pts(:,1), 'YData', joint_pts(:,2), 'ZData', joint_pts(:,3));
@@ -160,8 +160,76 @@ dt = mean(diff(time_vec));
 Sp_total = [diff(S_total) / dt; zeros(1, size(S_total,2))];  % N x 3
 Spp_total = [diff(Sp_total) / dt; zeros(1, size(S_total,2))]; % N x 3
 
-task_varss = {'X-axis', 'Y-axis', 'Z-axis'};
+Q   = Q_total(end, :);     
+Qp  = Qp_total(end, :)';   
+Qpp = Qpp_total(end, :)';
 
+num_segments = size(Waypoints, 1) - 1;
+num_steps = length(time_vec);
+distances = zeros(num_segments, 1);
+for i = 1:num_segments
+    distances(i) = norm(Waypoints(i + 1, 1:3) - Waypoints(i, 1:3)); % 3D distance (X, Y, Z)
+end
+
+total_distance = sum(distances);
+segment_steps = round((distances / total_distance) * length(time_traj));
+segment_end_indices = cumsum(segment_steps);
+segment_end_indices(end) = length(time_traj); 
+
+%% Forces and Torques calculation with dynamic payload
+Fq = zeros(length(time_vec), 4);
+for k = 1:length(time_vec)
+    Q_k = Q_total(k, :);
+    Qp_k = Qp_total(k, :)';
+    Qpp_k = Qpp_total(k, :)';
+
+    seg_idx = find(k <= segment_end_indices, 1, 'first'); 
+    if isempty(seg_idx)
+        seg_idx = total_segments; 
+    end
+
+    current_payload = getPayloadForSegment(seg_idx);
+    m4 = m1 + m2 + m3 + current_payload;
+    M = diag([current_payload, current_payload, current_payload, ...
+              m3, m3, m3, (Jg1 + Jg2 + Jg3), m2, m2, m2, ...
+              (Jg1 + Jg2), m1, m1, m1, Jg1, m4]);
+
+    Fse = zeros(16, 1);  
+
+    Fse(16) = -(m4) * g_const;
+      
+
+    % Compute Jacobians
+    
+    J = SCARAjacdin4DOF(Q_k, L);
+    Jp = SCARAjacPdin4DOF(Q_k, Qp_k, L);
+
+    Spp = Jp * Qp_k + J * Qpp_k;  
+    Fs = M * Spp + Fse;            
+
+    % Convert to joint-space torques/forces
+    Fq(k, :) = (-J' * Fs)';
+end
+
+% Display torque and force values
+max_Fq = zeros(1,size(Fq,2));
+min_Fq = zeros(1,size(Fq,2));
+
+ii = 1;
+for ii = 1:size(Fq,2)
+    max_Fq(ii) = max(Fq(:,ii));
+    min_Fq(ii) = min(Fq(:,ii));
+end
+
+% Display the maximum and minimum forces and torques
+disp('Maximum Forces and Torques (Nm):');
+disp(max_Fq);
+disp('Minimum Forces and Torques (Nm):');
+disp(min_Fq);
+
+%% Plots
+% S space plots
+task_varss = {'X-axis', 'Y-axis', 'Z-axis'};
 for axis_i = 1:3
     pos = S_total(:, axis_i);
     vel = Sp_total(:, axis_i);
@@ -194,9 +262,8 @@ for axis_i = 1:3
     title(['Acceleration along ', task_varss{axis_i}]);
 end
 
-% Names for the joints:
+% Q space plots
 task_varsq = {'Joint 1', 'Joint 2', 'Joint 3', 'Prismatic Joint'};
-
 for joint = 1:4
     pq = Q_total(:, joint);
     vq = Qp_total(:, joint);
@@ -229,7 +296,8 @@ for joint = 1:4
     title(['Acceleration for ', task_varsq{joint}]);
 end
 
-% Plot the XY projection of the end-effector trajectory
+% Trayectory proyections
+% XY projection of the end-effector trajectory
 figure;
 plot(trajectory(:,1), trajectory(:,2), 'b-', 'LineWidth', 2);
 grid on;
@@ -237,7 +305,7 @@ xlabel('X Position (m)');
 ylabel('Y Position (m)');
 title('End-Effector Trajectory in XY Plane');
 
-% Plot the XZ projection of the end-effector trajectory
+% XZ projection of the end-effector trajectory
 figure;
 plot(trajectory(:,1), trajectory(:,3), 'b-', 'LineWidth', 2);
 grid on;
@@ -245,73 +313,7 @@ xlabel('X Position (m)');
 ylabel('Z Position (m)');
 title('End-Effector Trajectory in XZ Plane');
 
-Q   = Q_total(end, :);     
-Qp  = Qp_total(end, :)';   
-Qpp = Qpp_total(end, :)';
-
-% Number of segments
-num_segments = size(Waypoints, 1) - 1;
-num_steps = length(time_vec);
-distances = zeros(num_segments, 1);
-for i = 1:num_segments
-    distances(i) = norm(Waypoints(i + 1, 1:3) - Waypoints(i, 1:3)); % 3D distance (X, Y, Z)
-end
-
-total_distance = sum(distances);
-segment_steps = round((distances / total_distance) * length(time_traj));
-segment_end_indices = cumsum(segment_steps);
-segment_end_indices(end) = length(time_traj); % Last index matches total steps
-
-
-% Forces and Torques calculation with dynamic payload
-Fq = zeros(length(time_vec), 4);
-for k = 1:length(time_vec)
-    Q_k = Q_total(k, :);
-    Qp_k = Qp_total(k, :)';
-    Qpp_k = Qpp_total(k, :)';
-
-    seg_idx = find(k <= segment_end_indices, 1, 'first'); 
-    if isempty(seg_idx)
-        seg_idx = total_segments; 
-    end
-
-    current_payload = getPayloadForSegment(seg_idx);
-    m4 = m1 + m2 + m3 + current_payload;
-    M = diag([current_payload, current_payload, current_payload, ...
-              m3, m3, m3, (Jg1 + Jg2 + Jg3), m2, m2, m2, ...
-              (Jg1 + Jg2), m1, m1, m1, Jg1, m4]);
-
-    Fse = zeros(16, 1);
-    Fse(3) = current_payload * g_const;  
-
-    % Compute Jacobians
-    J = SCARAjacdin4DOF(Q_k, L);
-    Jp = SCARAjacPdin4DOF(Q_k, Qp_k, L);
-
-    Spp = Jp * Qp_k + J * Qpp_k;  
-    Fs = M * Spp + Fse;            
-
-    % Convert to joint-space torques/forces
-    Fq(k, :) = (-J' * Fs)';
-end
-
-% Display torque and force values
-max_Fq = zeros(1,size(Fq,2));
-min_Fq = zeros(1,size(Fq,2));
-
-ii = 1;
-for ii = 1:size(Fq,2)
-    max_Fq(ii) = max(Fq(:,ii));
-    min_Fq(ii) = min(Fq(:,ii));
-end
-
-% Display the maximum and minimum forces and torques
-disp('Maximum Forces and Torques (Nm):');
-disp(max_Fq);
-disp('Minimum Forces and Torques (Nm):');
-disp(min_Fq);
-
-% Plot all torques in a single figure
+% Torques
 figure;
 subplot (2,1,1)
 plot(time_vec, Fq(:, 1), 'b', 'DisplayName', 'Joint 1');
@@ -319,23 +321,21 @@ hold on;
 plot(time_vec, Fq(:, 2), 'r', 'DisplayName', 'Joint 2');
 plot(time_vec, Fq(:, 3), 'g', 'DisplayName', 'Joint 3');
 hold off;
-
-% Add title and labels
 title('Torque on Revolute Joints');
 xlabel('Time (s)');
 ylabel('Torque (Nm)');
-
-% Add grid and legend
 grid on;
 legend('show');
 
-% Subplot for Force on Prismatic Joint
+%Force on Prismatic Joint
 subplot(2,1,2);
 plot(time_vec, Fq(:, 4), 'k', 'DisplayName', 'Force on Prismatic Joint');
 title('Force on Prismatic Joint');
 xlabel('Time (s)');
 ylabel('Force (N)');
 grid on;
+
+
 
 %% Helper functions
 function [link_pts, joint_pts] = computeSCARAPoints(L, Q)
